@@ -1,0 +1,52 @@
+name: iOS Build (Unsigned)
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: '3.50.1'
+
+jobs:
+  build-ios:
+    name: 编译 iOS（未签名）
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 打印 Xcode 版本
+        run: xcodebuild -version
+
+      - name: 安装 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: 环境自检
+        run: flutter doctor -v
+
+      - name: 拉取依赖
+        run: flutter pub get
+
+      - name: 编译 iOS 产物（不签名）
+        run: flutter build ios --release --no-codesign
+
+      - name: 打包 Runner.app（-y 保留符号链接，必须）
+        run: |
+          cd build/ios/iphoneos
+          zip -r -y Runner.app.zip Runner.app
+          ls -lh Runner.app.zip
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned-app
+          path: build/ios/iphoneos/Runner.app.zip
+          retention-days: 7
+          if-no-files-found: error
